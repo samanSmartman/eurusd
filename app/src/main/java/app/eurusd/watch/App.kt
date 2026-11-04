@@ -49,7 +49,7 @@ class Bridge(private val a: Activity) {
     }
     @JavascriptInterface fun fetchPrice() {
         Thread {
-            val q = Quote.fetch()
+            val q = Quote.fetch(Sched.off(a))
             val js = "window.onNativePrice(" + (q?.toString() ?: "null") + ")"
             a.runOnUiThread { (a as MainActivity).web.evaluateJavascript(js, null) }
         }.start()
@@ -59,17 +59,20 @@ class Bridge(private val a: Activity) {
 }
 
 object Quote {
+    private var offB = 0.0
+    private var calAt = 0L
+    private var lastY: JSONObject? = null
     private fun get(u: String): String? {
         return try {
             val c = URL(u).openConnection() as HttpURLConnection
-            c.connectTimeout = 8000; c.readTimeout = 8000
+            c.connectTimeout = 6000; c.readTimeout = 6000
             c.setRequestProperty("User-Agent", "Mozilla/5.0")
             val s = c.inputStream.bufferedReader().readText()
             c.disconnect()
             s
         } catch (e: Exception) { null }
     }
-    fun fetch(): JSONObject? {
+    private fun yahoo(): JSONObject? {
         for (host in listOf("query1", "query2")) {
             val s = get("https://" + host + ".finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=1m&range=1d") ?: continue
             try {
@@ -78,22 +81,44 @@ object Quote {
                 val pc = m.optDouble("chartPreviousClose", p)
                 return JSONObject().put("p", p).put("ch", (p - pc) / pc * 100)
                     .put("h", m.optDouble("regularMarketDayHigh", p)).put("l", m.optDouble("regularMarketDayLow", p))
-                    .put("src", "Yahoo Finance EUR/USD")
             } catch (e: Exception) {}
         }
-        val s = get("https://data-api.binance.vision/api/v3/ticker/price?symbol=EURUSDT") ?: return null
-        return try { JSONObject().put("p", JSONObject(s).getString("price").toDouble()).put("src", "Binance EUR/USDT (backup, not exact)") } catch (e: Exception) { null }
+        return null
+    }
+    private fun binance(): Double? {
+        val s = get("https://data-api.binance.vision/api/v3/ticker/price?symbol=EURUSDT")
+            ?: get("https://api.binance.com/api/v3/ticker/price?symbol=EURUSDT") ?: return null
+        return try { JSONObject(s).getString("price").toDouble() } catch (e: Exception) { null }
+    }
+    fun fetch(user: Double): JSONObject? {
+        val now = System.currentTimeMillis()
+        val b = binance()
+        if (b != null && now - calAt > 30000) {
+            val y = yahoo()
+            if (y != null) { offB = y.getDouble("p") - b; calAt = now; lastY = y }
+        }
+        val y = lastY
+        if (b != null && y != null) {
+            return JSONObject().put("p", b + offB + user).put("ch", y.optDouble("ch", 0.0))
+                .put("h", y.optDouble("h", b) + user).put("l", y.optDouble("l", b) + user)
+                .put("src", "Live feed calibrated to EUR/USD")
+        }
+        if (b != null) return JSONObject().put("p", b + user).put("src", "Binance EUR/USDT (not exact)")
+        val y2 = yahoo() ?: return null
+        return y2.put("p", y2.getDouble("p") + user).put("src", "Yahoo only (delayed)")
     }
 }
 
 object Sched {
     fun prefs(c: Context): SharedPreferences = c.getSharedPreferences("eu", 0)
+    fun off(c: Context): Double = (prefs(c).getString("off", "0") ?: "0").toDoubleOrNull() ?: 0.0
     fun sync(c: Context, json: String) {
         val o = JSONObject(json)
         prefs(c).edit()
             .putString("ev", o.getJSONArray("ev").toString())
             .putString("pa", o.getJSONArray("pa").toString())
             .putString("snd", o.getJSONObject("snd").toString())
+            .putString("off", o.optDouble("off", 0.0).toString())
             .putFloat("vol", o.getDouble("vol").toFloat()).apply()
         schedule(c)
         PriceService.update(c)
@@ -201,8 +226,8 @@ class PriceService : Service() {
             alive = true
             th = Thread {
                 while (alive) {
-                    try { val p = Quote.fetch()?.getDouble("p") ?: 0.0; if (p > 0) check(p) } catch (e: Exception) {}
-                    try { Thread.sleep(5000) } catch (e: Exception) {}
+                    try { val p = Quote.fetch(Sched.off(this))?.getDouble("p") ?: 0.0; if (p > 0) check(p) } catch (e: Exception) {}
+                    try { Thread.sleep(2000) } catch (e: Exception) {}
                 }
             }
             th!!.start()

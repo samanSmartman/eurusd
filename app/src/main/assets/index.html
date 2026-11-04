@@ -153,8 +153,8 @@ function rNews(){if(!nl){loadNews();return}
 $('#s-news').addEventListener('click',e=>{if(e.target.id=='nr')loadNews()});
 $('#s-news').addEventListener('change',e=>{if(e.target.id=='nf'){nf=e.target.checked;rNews()}});
 let ip;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;if(cur=='set')rSet()});
-function rSet(){$('#s-set').innerHTML='<div class="card"><div class="row" style="border:0;padding-top:0"><span>Volume</span><input type="range" id="vol" min="0.1" max="1" step="0.1" value="'+S.vol+'"></div><div class="row"><span>Keep screen on<div class="mu">Helps alarms ring on time</div></span><input type="checkbox" class="sw" id="wk"'+(S.wake?' checked':'')+'></div>'+(ip?'<div class="row"><span>Install as app</span><button id="inst">Install</button></div>':'')+'</div><div class="card mu">Alarms ring in the background, even when the app is closed. Open the app every couple of weeks to refresh them. Sessions and killzones follow daylight saving automatically. Time shown uses your phone clock and zone ('+LOCAL+').</div>'}
-$('#s-set').addEventListener('input',e=>{if(e.target.id=='vol'){S.vol=+e.target.value;save()}});
+function rSet(){$('#s-set').innerHTML='<div class="card"><div class="row" style="border:0;padding-top:0"><span>Volume</span><input type="range" id="vol" min="0.1" max="1" step="0.1" value="'+S.vol+'"></div><div class="row"><span>Price offset (pips)<div class="mu">Match your broker. Can be negative.</div></span><input type="number" id="off" step="0.1" value="'+(S.off||0)+'"></div><div class="row"><span>Keep screen on<div class="mu">Helps alarms ring on time</div></span><input type="checkbox" class="sw" id="wk"'+(S.wake?' checked':'')+'></div>'+(ip?'<div class="row"><span>Install as app</span><button id="inst">Install</button></div>':'')+'</div><div class="card mu">Alarms ring in the background, even when the app is closed. Open the app every couple of weeks to refresh them. Sessions and killzones follow daylight saving automatically. Time shown uses your phone clock and zone ('+LOCAL+').</div>'}
+$('#s-set').addEventListener('input',e=>{if(e.target.id=='vol'){S.vol=+e.target.value;save()}if(e.target.id=='off'){S.off=parseFloat(e.target.value)||0;save()}});
 $('#s-set').addEventListener('change',e=>{if(e.target.id=='wk'){S.wake=e.target.checked;save();if(S.wake)wl();else try{window._wl&&window._wl.release()}catch(x){}}});
 $('#s-set').addEventListener('click',e=>{if(e.target.id=='inst'&&ip){ip.prompt();ip=null}});
 /* native bridge */
@@ -162,12 +162,12 @@ function occN(tz,hm,now,n){const p=parts(now,tz),r=[];for(let d=0;d<n;d++){const
 function syncNative(){if(!window.Android)return;const now=Date.now(),ev=[];
  for(const g of['kz','se'])GROUPS[g].L.forEach(r=>{const st=S[g][r.id];if(!st||!st.on)return;
   occN(r.tz,r.o,now,21).forEach(at=>{const f=at-st.lead*6e4;if(f>now&&!closed(at))ev.push({id:r.id+at,at:f,t:r.n+(st.lead?' in '+st.lead+' min':' is starting'),b:'Opens '+hm(at)+' your time',c:g})})});
- try{Android.sync(JSON.stringify({ev,pa:S.pa,snd:S.snd,vol:S.vol}))}catch(e){}}
+ try{Android.sync(JSON.stringify({ev,pa:S.pa,snd:S.snd,vol:S.vol,off:(+S.off||0)*0.0001}))}catch(e){}}
 function pullNative(){if(!window.Android)return;try{S.pa=JSON.parse(Android.getPa());if(cur=='alarms')rAlarms()}catch(e){}}
 setTimeout(()=>{pullNative();syncNative()},500);
 /* start */
 function clock(){const n=new Date();$('#lt').textContent=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('#ut').textContent=f2(n.getUTCHours())+':'+f2(n.getUTCMinutes())+':'+f2(n.getUTCSeconds());if(cur=='home')rHome();tick()}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 $('#arm').style.display='block';
-clock();setInterval(clock,1000);poll();setInterval(poll,window.Android?5000:3000);
+clock();setInterval(clock,1000);poll();setInterval(poll,window.Android?2000:3000);
 </script></body></html>
