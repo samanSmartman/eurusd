@@ -7,6 +7,7 @@ import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.*
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
@@ -62,6 +63,18 @@ class Bridge(private val a: Activity) {
             val js = "window.onFetch(" + JSONObject.quote(id) + "," + JSONObject.quote(s) + ")"
             a.runOnUiThread { (a as MainActivity).web.evaluateJavascript(js, null) }
         }.start()
+    }
+    @JavascriptInterface fun bg(kind: String) {
+        a.runOnUiThread {
+            val details = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.packageName))
+            try {
+                when (kind) {
+                    "battery" -> a.startActivity(Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + a.packageName)))
+                    "autostart" -> a.startActivity(Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")))
+                    else -> a.startActivity(details)
+                }
+            } catch (e: Exception) { try { a.startActivity(details) } catch (x: Exception) {} }
+        }
     }
     @JavascriptInterface fun testRing(cat: String) { RingService.start(a, "Test alarm", "This is how it sounds", cat) }
     @JavascriptInterface fun status(): String =

@@ -230,9 +230,10 @@ $('#rd').addEventListener('click',e=>{if(e.target.id=='rdb')closeRd();if(e.targe
 function srcHtml(){let h='<div class="card"><h3>Analysis sources</h3>';
  FEEDS0.concat(S.cf).forEach(f=>{const cu=S.cf.includes(f);h+='<div class="row"><div><b>'+esc(f.n)+'</b><div class="mu">'+(stat[f.n]||'not loaded yet')+'</div></div>'+(cu?'<button class="g" data-fdel="'+esc(f.n)+'">Remove</button>':'<input type="checkbox" class="sw" data-fh="'+esc(f.n)+'"'+(S.hide.includes(f.n)?'':' checked')+'>')+'</div>'});
  return h+'<div class="row"><input id="fn" placeholder="Name" style="width:90px"><input id="fu" placeholder="Feed URL (RSS/Atom)" style="flex:1;min-width:0"><button id="fadd">Add</button></div><p class="mu" style="margin-top:8px">Add any blog, Substack, YouTube channel or Reddit feed, then tap Follow on a post to track an author.</p></div>'}
-function rSet(){rSet0();$('#s-set').insertAdjacentHTML('beforeend',srcHtml())}
+function bgHtml(){return window.Android?'<div class="card"><h3>Keep alarms working when the app is closed</h3><p class="mu" style="margin-bottom:10px">1. Tap Battery and choose Allow or No restrictions.<br>2. Tap Autostart and turn this app on.<br>3. Tap App info, open Other permissions and allow Display pop-up windows while running in the background and Show on lock screen.<br>4. Open recent apps, long-press this app card and tap the lock icon so clearing apps does not close it.</p><div class="acts"><button class="g" data-bg="battery">Battery</button><button class="g" data-bg="autostart">Autostart</button><button class="g" data-bg="app">App info</button></div></div>':''}
+function rSet(){rSet0();$('#s-set').insertAdjacentHTML('beforeend',bgHtml()+srcHtml())}
 $('#s-set').addEventListener('click',e=>{const t=e.target;
- if(t.id=='fadd'){const n=$('#fn').value.trim(),u=$('#fu').value.trim();if(!/^https?:\/\//.test(u))return;S.cf.push({n:n||new URL(u).hostname,u});save();nl=0;rSet()}
+ if(t.dataset.bg){Android.bg(t.dataset.bg);return}if(t.id=='fadd'){const n=$('#fn').value.trim(),u=$('#fu').value.trim();if(!/^https?:\/\//.test(u))return;S.cf.push({n:n||new URL(u).hostname,u});save();nl=0;rSet()}
  if(t.dataset.fdel){S.cf=S.cf.filter(f=>f.n!=t.dataset.fdel);save();nl=0;rSet()}});
 $('#s-set').addEventListener('change',e=>{const n=e.target.dataset.fh;if(n){S.hide=S.hide.filter(x=>x!=n);if(!e.target.checked)S.hide.push(n);save();nl=0}});
 
