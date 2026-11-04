@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1726">
+<link rel="manifest" href="manifest.webmanifest">
+<title>EURUSD Watch</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0e1726;--sf:#16233a;--sf2:#1d2d49;--tx:#eef1f7;--mu:#8e9ab3;--ac:#8c9bff;--up:#2fbf9b;--dn:#f26b5b;--ln:#26385a;color-scheme:dark}
+@media(prefers-color-scheme:light){:root:not([data-t=dark]){--bg:#f3f5fa;--sf:#fff;--sf2:#e8ecf6;--tx:#111b2e;--mu:#5c6781;--ac:#4a5bd8;--up:#128a6c;--dn:#d1432f;--ln:#d6dcec;color-scheme:light}}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--tx);font:15px/1.4 Manrope,system-ui,sans-serif;padding-top:env(safe-area-inset-top,0)}
+#app{max-width:560px;margin:0 auto;height:100%;display:flex;flex-direction:column}
+header{padding:14px 18px 8px;display:flex;justify-content:space-between;align-items:flex-end}
+header b{font-size:19px;font-weight:800;letter-spacing:-.3px}
+.clk{text-align:right;font-variant-numeric:tabular-nums;color:var(--mu);font-size:12px}
+.clk strong{display:block;color:var(--tx);font-size:15px}
+main{flex:1;overflow-y:auto;padding:6px 14px 90px}
+section{display:none}section.on{display:block}
+.card{background:var(--sf);border-radius:18px;padding:16px;margin-bottom:12px}
+h3{font-size:13px;color:var(--mu);font-weight:600;margin-bottom:10px}
+.px{font-size:46px;font-weight:800;letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.px small{font-size:22px;opacity:.55}
+.up{color:var(--up)}.dn{color:var(--dn)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--ln)}
+.row:first-of-type{border-top:0}
+.mu{color:var(--mu);font-size:12px}
+.pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--sf2);color:var(--mu)}
+.pill.o{background:color-mix(in srgb,var(--up) 22%,transparent);color:var(--up)}
+.warn{background:color-mix(in srgb,var(--dn) 18%,transparent);color:var(--dn);border-radius:14px;padding:10px 14px;margin-bottom:12px;font-size:13px}
+button,select,input{font:inherit;color:var(--tx)}
+button{border:0;border-radius:12px;padding:10px 14px;background:var(--ac);color:#fff;font-weight:600}
+button.g{background:var(--sf2);color:var(--tx)}
+select,input[type=number]{background:var(--sf2);border:1px solid var(--ln);border-radius:10px;padding:8px}
+input[type=number]{width:120px}
+.sw{appearance:none;width:44px;height:26px;border-radius:99px;background:var(--sf2);position:relative;border:1px solid var(--ln)}
+.sw:before{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--mu);transition:.15s}
+.sw:checked{background:var(--ac)}.sw:checked:before{left:20px;background:#fff}
+.news{display:block;color:inherit;text-decoration:none;background:var(--sf);border-radius:18px;overflow:hidden;margin-bottom:12px}
+.news img{width:100%;height:170px;object-fit:cover;display:block}
+.news div{padding:12px 16px 14px}.news b{display:block;font-weight:600;margin-bottom:6px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-top:1px solid var(--ln);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0)}
+nav div{display:flex;max-width:560px;width:100%}
+nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:12px 0;font-size:12px}
+nav button.on{color:var(--ac)}
+#ring{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 92%,transparent);display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:30px;z-index:9}
+#ring h1{font-size:28px;letter-spacing:-.5px}
+#ring.on{display:flex}
+#arm{margin-bottom:12px}
+</style></head><body>
+<div id="app">
+<header><b>EURUSD Watch</b><div class="clk"><strong id="lt">--</strong><span id="tzn"></span> · UTC <span id="ut">--</span></div></header>
+<main>
+<div id="arm" class="card" style="display:none"><b>Turn on alarms</b><p class="mu" style="margin:6px 0 12px">Sound, notifications and screen-on mode need one tap to start.</p><button id="armb">Enable alarms</button></div>
+<section id="s-home" class="on"></section>
+<section id="s-alarms"></section>
+<section id="s-news"></section>
+<section id="s-set"></section>
+</main>
+<nav><div><button data-t="home" class="on">Market</button><button data-t="alarms">Alarms</button><button data-t="news">Analysis</button><button data-t="set">Settings</button></div></nav>
+</div>
+<div id="ring"><h1 id="rt"></h1><p id="rb" class="mu"></p><button id="rs">Stop</button><button id="rz" class="g">Snooze 5 min</button></div>
+<script>
+const $=s=>document.querySelector(s),NY='America/New_York';
+const SES=[{id:'syd',n:'Sydney',tz:'Australia/Sydney',o:[8,0],c:[17,0]},{id:'tok',n:'Tokyo',tz:'Asia/Tokyo',o:[9,0],c:[18,0]},{id:'lon',n:'London',tz:'Europe/London',o:[8,0],c:[17,0]},{id:'ny',n:'New York',tz:NY,o:[8,0],c:[17,0]}];
+const KZ=[{id:'asia',n:'Asian Killzone',tz:NY,o:[20,0],c:[0,0]},{id:'lkz',n:'London Killzone',tz:NY,o:[2,0],c:[5,0]},{id:'nkz',n:'New York Killzone',tz:NY,o:[7,0],c:[10,0]},{id:'lc',n:'London Close Killzone',tz:NY,o:[10,0],c:[12,0]}];
+const FEEDS=[['FXStreet','https://www.fxstreet.com/rss/news'],['ForexLive','https://www.forexlive.com/feed/news'],['TradingView Ideas','https://www.tradingview.com/feed/?sort=recent&symbol=FX:EURUSD']];
+const GROUPS={kz:{n:'Killzone alarms',L:KZ},se:{n:'Session open alarms',L:SES}};
+const LOCAL=Intl.DateTimeFormat().resolvedOptions().timeZone;
+$('#tzn').textContent=LOCAL;
+/* state */
+function load(){const d={kz:{},se:{},snd:{kz:'siren',se:'bell',pr:'beep'},vol:.8,pa:[],fired:{},wake:true};
+ KZ.forEach(k=>d.kz[k.id]={on:k.id=='lkz'||k.id=='nkz',lead:5});SES.forEach(k=>d.se[k.id]={on:k.id=='lon'||k.id=='ny',lead:5});
+ try{return Object.assign(d,JSON.parse(localStorage.getItem('eu')||'{}'))}catch(e){return d}}
+let S=load();
+function save(){const n=Date.now();for(const k in S.fired)if(n-S.fired[k]>2592e5)delete S.fired[k];try{localStorage.setItem('eu',JSON.stringify(S))}catch(e){}setTimeout(syncNative,0)}
+/* time helpers */
+function parts(t,tz){const o={};new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric'}).formatToParts(t).forEach(p=>o[p.type]=+p.value);return o}
+function off(t,tz){const p=parts(t,tz);return Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second)-Math.floor(t/1000)*1000}
+function occ(tz,hm,now){const p=parts(now,tz),r=[];for(let d=-1;d<3;d++){const g=Date.UTC(p.year,p.month-1,p.day+d,hm[0],hm[1]);let t=g-off(g,tz);t=g-off(t,tz);r.push(t)}return r}
+function nxt(tz,hm,now){return occ(tz,hm,now).find(t=>t>now)}
+function isOpen(r,now){const p=parts(now,r.tz),m=p.hour*60+p.minute,o=r.o[0]*60+r.o[1],c=r.c[0]*60+r.c[1];return o<c?m>=o&&m<c:m>=o||m<c}
+function closed(t){const p=parts(t,NY),w=new Date(Date.UTC(p.year,p.month-1,p.day)).getUTCDay();return w==6||(w==5&&p.hour>=17)||(w==0&&p.hour<17)}
+const f2=n=>String(n).padStart(2,'0');
+const hm=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+const cd=ms=>{const s=Math.max(0,Math.floor(ms/1e3));return f2(Math.floor(s/3600))+':'+f2(Math.floor(s%3600/60))+':'+f2(s%60)};
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* sound */
+let ac,loop,ringing;
+function tone(ty,f,d,v){const o=ac.createOscillator(),g=ac.createGain();o.type=ty;o.frequency.value=f;g.gain.setValueAtTime(v*S.vol,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}
+const SND={bell:()=>{tone('sine',880,1.2,.6);setTimeout(()=>tone('sine',1320,1.2,.4),250)},siren:()=>{tone('square',600,.4,.3);setTimeout(()=>tone('square',900,.4,.3),420)},beep:()=>{[0,200,400].forEach(d=>setTimeout(()=>tone('square',1000,.12,.3),d))}};
+let zz;
+function ring(cat,title,body){if(!ac)return;ringing=true;$('#rt').textContent=title;$('#rb').textContent=body;$('#ring').classList.add('on');
+ const p=SND[S.snd[cat]];clearInterval(loop);p();loop=setInterval(p,1600);clearTimeout(zz);zz=setTimeout(stop,12e4);
+ try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400])}catch(e){}
+ try{if(Notification.permission=='granted')navigator.serviceWorker.ready.then(r=>r.showNotification(title,{body,tag:'eu',requireInteraction:true}))}catch(e){}
+ window._last={cat,title,body}}
+function stop(){ringing=false;clearInterval(loop);$('#ring').classList.remove('on')}
+$('#rs').onclick=stop;
+$('#rz').onclick=()=>{const l=window._last;stop();setTimeout(()=>ring(l.cat,l.title,l.body),3e5)};
+/* arm */
+async function arm(){try{window.Android&&Android.arm()}catch(e){}try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();await ac.resume()}catch(e){}
+ try{Notification.requestPermission()}catch(e){}wl();$('#arm').style.display='none'}
+async function wl(){try{if(S.wake&&'wakeLock'in navigator)window._wl=await navigator.wakeLock.request('screen')}catch(e){}}
+$('#armb').onclick=arm;
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){wl();tick()}});
+/* alarm engine */
+function tick(){if(window.Android)return;const now=Date.now();
+ for(const g of['kz','se'])GROUPS[g].L.forEach(r=>{const st=S[g][r.id];if(!st||!st.on)return;
+  occ(r.tz,r.o,now).forEach(at=>{const f=at-st.lead*6e4,key=r.id+at;
+   if(now>=f&&now<f+12e4&&!S.fired[key]&&!closed(at)){S.fired[key]=now;save();ring(g,r.n+(st.lead?' in '+st.lead+' min':' is starting'),'Opens '+hm(at)+' your time')}})});
+ if(price)S.pa.forEach(a=>{if(!a.on)return;if((a.dir=='up'&&price>=a.p)||(a.dir=='dn'&&price<=a.p)){a.on=false;save();ring('pr','EURUSD hit '+a.p.toFixed(5),'Now '+price.toFixed(5));if(cur=='alarms')rAlarms()}})}
+/* price */
+let price=0,first=0,pdata=null;
+async function getPrice(){
+ for(const b of['https://data-api.binance.vision','https://api.binance.com'])try{const j=await(await fetch(b+'/api/v3/ticker/24hr?symbol=EURUSDT')).json();if(j.lastPrice)return{p:+j.lastPrice,ch:+j.priceChangePercent,h:+j.highPrice,l:+j.lowPrice,src:'Binance EUR/USDT, live'}}catch(e){}
+ try{const j=await(await fetch('https://open.er-api.com/v6/latest/EUR')).json();return{p:j.rates.USD,src:'open.er-api, updates hourly'}}catch(e){}}
+async function poll(){const d=await getPrice();if(d){const up=d.p>=price;pdata=d;pdata.up=up;price=d.p}else pdata=null;if(cur=='home')rHome();tick()}
+/* tabs */
+let cur='home';
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{cur=b.dataset.t;document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id=='s-'+cur));({home:rHome,alarms:rAlarms,news:rNews,set:rSet})[cur]()});
+function rHome(){const now=Date.now(),p=pdata;
+ let h='';if(closed(now))h+='<div class="warn">Forex market is closed for the weekend. It reopens Sunday 5 PM New York time.</div>';
+ h+='<div class="card"><h3>EUR/USD</h3>'+(p?'<div class="px '+(p.up?'up':'dn')+'">'+p.p.toFixed(4)+'<small>'+String(p.p.toFixed(5)).slice(-1)+'</small></div>'+(p.ch!=null?'<div class="mu">24h '+(p.ch>=0?'+':'')+p.ch.toFixed(2)+'% · High '+p.h.toFixed(4)+' · Low '+p.l.toFixed(4)+'</div>':'')+'<div class="mu" style="margin-top:4px">'+p.src+'</div>':'<div class="mu">Loading price… if this stays, check your connection or VPN.</div>')+'</div>';
+ for(const g of['se','kz']){h+='<div class="card"><h3>'+(g=='se'?'Trading sessions':'Killzones (New York time)')+'</h3>';
+  GROUPS[g].L.forEach(r=>{const o=isOpen(r,now),t=o?nxt(r.tz,r.c,now):nxt(r.tz,r.o,now);
+   h+='<div class="row"><div><b>'+r.n+'</b><div class="mu">'+f2(r.o[0])+':'+f2(r.o[1])+'–'+f2(r.c[0])+':'+f2(r.c[1])+' '+(g=='se'?r.tz.split('/')[1].replace('_',' '):'NY')+'</div></div><div style="text-align:right"><span class="pill '+(o?'o':'')+'">'+(o?'Open':'Closed')+'</span><div class="mu" style="margin-top:4px">'+(o?'closes':'opens')+' in '+cd(t-now)+'</div></div></div>'});h+='</div>'}
+ $('#s-home').innerHTML=h}
+function sndSel(c){return '<select data-snd="'+c+'">'+['bell','siren','beep'].map(x=>'<option value="'+x+'"'+(S.snd[c]==x?' selected':'')+'>'+x[0].toUpperCase()+x.slice(1)+'</option>').join('')+'</select> <button class="g" data-test="'+c+'">Test</button>'}
+function rAlarms(){const now=Date.now();let h='';
+ for(const g of['kz','se']){h+='<div class="card"><h3>'+GROUPS[g].n+'</h3><div class="row" style="padding-top:0"><span class="mu">Sound</span><span>'+sndSel(g)+'</span></div>';
+  GROUPS[g].L.forEach(r=>{const st=S[g][r.id],at=nxt(r.tz,r.o,now);
+   h+='<div class="row"><div><b>'+r.n+'</b><div class="mu">Next: '+new Date(at).toLocaleDateString([],{weekday:'short'})+' '+hm(at)+' your time</div></div><div style="display:flex;gap:8px;align-items:center"><select data-lead="'+g+'.'+r.id+'">'+[0,5,10,15,30].map(x=>'<option value="'+x+'"'+(st.lead==x?' selected':'')+'>'+(x?x+' min before':'At open')+'</option>').join('')+'</select><input type="checkbox" class="sw" data-on="'+g+'.'+r.id+'"'+(st.on?' checked':'')+'></div></div>'});h+='</div>'}
+ h+='<div class="card"><h3>Price alarms</h3><div class="row" style="padding-top:0"><span class="mu">Sound</span><span>'+sndSel('pr')+'</span></div><div class="row"><input type="number" id="pin" step="0.0001" placeholder="1.0850"><button id="padd">Add alarm</button></div>';
+ S.pa.forEach((a,i)=>h+='<div class="row"><div><b>'+a.p.toFixed(5)+'</b><div class="mu">'+(a.dir=='up'?'Rings when price rises to this':'Rings when price falls to this')+(a.on?'':' · triggered')+'</div></div><button class="g" data-del="'+i+'">Delete</button></div>');
+ $('#s-alarms').innerHTML=h+'</div>'}
+$('#s-alarms').addEventListener('change',e=>{const d=e.target.dataset;if(d.snd)S.snd[d.snd]=e.target.value;if(d.lead){const[g,i]=d.lead.split('.');S[g][i].lead=+e.target.value}if(d.on){const[g,i]=d.on.split('.');S[g][i].on=e.target.checked}save()});
+$('#s-alarms').addEventListener('click',e=>{const d=e.target.dataset;
+ if(d.test){if(!ac)return arm();ring(d.test,'Test alarm','This is how it sounds')}
+ if(d.del){S.pa.splice(+d.del,1);save();rAlarms()}
+ if(e.target.id=='padd'){const v=parseFloat($('#pin').value);if(!v)return;S.pa.push({p:v,dir:v>price?'up':'dn',on:true});save();rAlarms()}});
+let news=[],nf=true,nl=0;
+async function loadNews(){nl=1;rNews();news=[];await Promise.all(FEEDS.map(async([n,u])=>{try{const j=await(await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(u))).json();(j.items||[]).forEach(i=>news.push({s:n,t:i.title,l:i.link,d:new Date((i.pubDate||'').replace(' ','T')+'Z'),img:i.thumbnail||(i.enclosure&&i.enclosure.link)||((/<img[^>]+src="([^"]+)"/.exec(i.content||i.description||''))||[])[1]||''}))}catch(e){}}));news.sort((a,b)=>b.d-a.d);nl=2;rNews()}
+function rNews(){if(!nl){loadNews();return}
+ let h='<div class="row" style="border:0"><label><input type="checkbox" class="sw" id="nf"'+(nf?' checked':'')+'> <span class="mu">EUR / USD related only</span></label><button class="g" id="nr">Refresh</button></div>';
+ const L=news.filter(n=>!nf||/eur|usd|ecb|fed\b|dollar|euro|powell|lagarde/i.test(n.t));
+ if(nl==1)h+='<div class="mu">Loading analysis…</div>';else if(!L.length)h+='<div class="card mu">No items found. Turn off the filter or tap Refresh.</div>';
+ L.slice(0,40).forEach(n=>{const m=Math.round((Date.now()-n.d)/6e4),ago=isNaN(m)?'':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago';
+  h+='<a class="news" href="'+esc(n.l)+'" target="_blank" rel="noopener">'+(n.img?'<img loading="lazy" src="'+esc(n.img)+'" onerror="this.remove()">':'')+'<div><b>'+esc(n.t)+'</b><span class="mu">'+esc(n.s)+' · '+ago+(isNaN(n.d)?'':' · '+n.d.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})+' local / '+f2(n.d.getUTCHours())+':'+f2(n.d.getUTCMinutes())+' UTC')+'</span></div></a>'});
+ $('#s-news').innerHTML=h}
+$('#s-news').addEventListener('click',e=>{if(e.target.id=='nr')loadNews()});
+$('#s-news').addEventListener('change',e=>{if(e.target.id=='nf'){nf=e.target.checked;rNews()}});
+let ip;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;if(cur=='set')rSet()});
+function rSet(){$('#s-set').innerHTML='<div class="card"><div class="row" style="border:0;padding-top:0"><span>Volume</span><input type="range" id="vol" min="0.1" max="1" step="0.1" value="'+S.vol+'"></div><div class="row"><span>Keep screen on<div class="mu">Helps alarms ring on time</div></span><input type="checkbox" class="sw" id="wk"'+(S.wake?' checked':'')+'></div>'+(ip?'<div class="row"><span>Install as app</span><button id="inst">Install</button></div>':'')+'</div><div class="card mu">Alarms ring in the background, even when the app is closed. Open the app every couple of weeks to refresh them. Sessions and killzones follow daylight saving automatically. Time shown uses your phone clock and zone ('+LOCAL+').</div>'}
+$('#s-set').addEventListener('input',e=>{if(e.target.id=='vol'){S.vol=+e.target.value;save()}});
+$('#s-set').addEventListener('change',e=>{if(e.target.id=='wk'){S.wake=e.target.checked;save();if(S.wake)wl();else try{window._wl&&window._wl.release()}catch(x){}}});
+$('#s-set').addEventListener('click',e=>{if(e.target.id=='inst'&&ip){ip.prompt();ip=null}});
+/* native bridge */
+function occN(tz,hm,now,n){const p=parts(now,tz),r=[];for(let d=0;d<n;d++){const g=Date.UTC(p.year,p.month-1,p.day+d,hm[0],hm[1]);let t=g-off(g,tz);t=g-off(t,tz);r.push(t)}return r}
+function syncNative(){if(!window.Android)return;const now=Date.now(),ev=[];
+ for(const g of['kz','se'])GROUPS[g].L.forEach(r=>{const st=S[g][r.id];if(!st||!st.on)return;
+  occN(r.tz,r.o,now,21).forEach(at=>{const f=at-st.lead*6e4;if(f>now&&!closed(at))ev.push({id:r.id+at,at:f,t:r.n+(st.lead?' in '+st.lead+' min':' is starting'),b:'Opens '+hm(at)+' your time',c:g})})});
+ try{Android.sync(JSON.stringify({ev,pa:S.pa,snd:S.snd,vol:S.vol}))}catch(e){}}
+function pullNative(){if(!window.Android)return;try{S.pa=JSON.parse(Android.getPa());if(cur=='alarms')rAlarms()}catch(e){}}
+setTimeout(()=>{pullNative();syncNative()},500);
+/* start */
+function clock(){const n=new Date();$('#lt').textContent=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('#ut').textContent=f2(n.getUTCHours())+':'+f2(n.getUTCMinutes())+':'+f2(n.getUTCSeconds());if(cur=='home')rHome();tick()}
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+$('#arm').style.display='block';
+clock();setInterval(clock,1000);poll();setInterval(poll,3000);
+</script></body></html>
