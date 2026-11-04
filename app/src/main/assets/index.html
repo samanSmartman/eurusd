@@ -39,7 +39,7 @@ input[type=number]{width:120px}
 .sw:checked{background:var(--ac)}.sw:checked:before{left:20px;background:#fff}
 .news{display:block;color:inherit;text-decoration:none;background:var(--sf);border-radius:18px;overflow:hidden;margin-bottom:12px}
 .news img{width:100%;height:170px;object-fit:cover;display:block}
-.news div{padding:12px 16px 14px}.news b{display:block;font-weight:600;margin-bottom:6px}
+.news>div{padding:12px 16px 14px}.news b{display:block;font-weight:600;margin-bottom:6px}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--sf);border-top:1px solid var(--ln);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0)}
 nav div{display:flex;max-width:560px;width:100%}
 nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:12px 0;font-size:12px}
@@ -48,6 +48,24 @@ nav button.on{color:var(--ac)}
 #ring h1{font-size:28px;letter-spacing:-.5px}
 #ring.on{display:flex}
 #arm{margin-bottom:12px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}
+button.chip{background:var(--sf2);color:var(--mu);padding:7px 13px;border-radius:99px;white-space:nowrap}
+button.chip.on{background:var(--ac);color:#fff}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.sm{margin:6px 0 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.acts{display:flex;gap:8px;margin-top:10px}.acts button{padding:7px 12px;font-size:13px}
+input:not([type]){background:var(--sf2);border:1px solid var(--ln);border-radius:10px;padding:8px}
+a.btn{display:inline-block;text-decoration:none;border-radius:12px;padding:10px 14px;background:var(--ac);color:#fff;font-weight:600}
+#rd{position:fixed;inset:0;background:var(--bg);z-index:8;display:none;overflow-y:auto;padding-top:env(safe-area-inset-top,0)}
+#rd.on{display:block}
+.rdh{position:sticky;top:0;background:var(--bg);padding:10px 14px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--ln)}
+#rdt{margin-left:auto;display:flex;gap:8px;align-items:center}
+#rdc{max-width:640px;margin:0 auto;padding:16px 18px 60px}
+#rdc h1{font-size:24px;letter-spacing:-.4px;line-height:1.2}
+#rdc h2,#rdc h3{margin:20px 0 6px}
+#rdc p{margin:12px 0;font-size:16.5px;line-height:1.65}
+#rdc img{width:100%;border-radius:12px;margin:12px 0;display:block}
+#rdc blockquote{border-left:3px solid var(--ac);padding-left:12px;color:var(--mu);margin:12px 0}
 </style></head><body>
 <div id="app">
 <header><b>EURUSD Watch</b><div class="clk"><strong id="lt">--</strong><span id="tzn"></span> · UTC <span id="ut">--</span></div></header>
@@ -60,6 +78,7 @@ nav button.on{color:var(--ac)}
 </main>
 <nav><div><button data-t="home" class="on">Market</button><button data-t="alarms">Alarms</button><button data-t="news">Analysis</button><button data-t="set">Settings</button></div></nav>
 </div>
+<div id="rd"><div class="rdh"><button class="g" id="rdb">‹ Back</button><span id="rdt"></span></div><div id="rdc"></div></div>
 <div id="ring"><h1 id="rt"></h1><p id="rb" class="mu"></p><button id="rs">Stop</button><button id="rz" class="g">Snooze 5 min</button></div>
 <script>
 const $=s=>document.querySelector(s),NY='America/New_York';
@@ -70,7 +89,7 @@ const GROUPS={kz:{n:'Killzone alarms',L:KZ},se:{n:'Session open alarms',L:SES}};
 const LOCAL=Intl.DateTimeFormat().resolvedOptions().timeZone;
 $('#tzn').textContent=LOCAL;
 /* state */
-function load(){const d={kz:{},se:{},snd:{kz:'siren',se:'bell',pr:'beep'},vol:.8,pa:[],fired:{},wake:true};
+function load(){const d={kz:{},se:{},snd:{kz:'siren',se:'bell',pr:'beep'},vol:.8,pa:[],fired:{},wake:true,sv:{},fol:{},cf:[],hide:[]};
  KZ.forEach(k=>d.kz[k.id]={on:k.id=='lkz'||k.id=='nkz',lead:5});SES.forEach(k=>d.se[k.id]={on:k.id=='lon'||k.id=='ny',lead:5});
  try{return Object.assign(d,JSON.parse(localStorage.getItem('eu')||'{}'))}catch(e){return d}}
 let S=load();
@@ -141,19 +160,84 @@ $('#s-alarms').addEventListener('click',e=>{const d=e.target.dataset;
  if(d.test){if(!ac)return arm();ring(d.test,'Test alarm','This is how it sounds')}
  if(d.del){S.pa.splice(+d.del,1);save();rAlarms()}
  if(e.target.id=='padd'){const v=parseFloat($('#pin').value);if(!v)return;S.pa.push({p:v,dir:v>price?'up':'dn',on:true});save();rAlarms()}});
-let news=[],nf=true,nl=0;
-async function loadNews(){nl=1;rNews();news=[];await Promise.all(FEEDS.map(async([n,u])=>{try{const j=await(await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(u))).json();(j.items||[]).forEach(i=>news.push({s:n,t:i.title,l:i.link,d:new Date((i.pubDate||'').replace(' ','T')+'Z'),img:i.thumbnail||(i.enclosure&&i.enclosure.link)||((/<img[^>]+src="([^"]+)"/.exec(i.content||i.description||''))||[])[1]||''}))}catch(e){}}));news.sort((a,b)=>b.d-a.d);nl=2;rNews()}
-function rNews(){if(!nl){loadNews();return}
- let h='<div class="row" style="border:0"><label><input type="checkbox" class="sw" id="nf"'+(nf?' checked':'')+'> <span class="mu">EUR / USD related only</span></label><button class="g" id="nr">Refresh</button></div>';
- const L=news.filter(n=>!nf||/eur|usd|ecb|fed\b|dollar|euro|powell|lagarde/i.test(n.t));
- if(nl==1)h+='<div class="mu">Loading analysis…</div>';else if(!L.length)h+='<div class="card mu">No items found. Turn off the filter or tap Refresh.</div>';
- L.slice(0,40).forEach(n=>{const m=Math.round((Date.now()-n.d)/6e4),ago=isNaN(m)?'':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago';
-  h+='<a class="news" href="'+esc(n.l)+'" target="_blank" rel="noopener">'+(n.img?'<img loading="lazy" src="'+esc(n.img)+'" onerror="this.remove()">':'')+'<div><b>'+esc(n.t)+'</b><span class="mu">'+esc(n.s)+' · '+ago+(isNaN(n.d)?'':' · '+n.d.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})+' local / '+f2(n.d.getUTCHours())+':'+f2(n.d.getUTCMinutes())+' UTC')+'</span></div></a>'});
- $('#s-news').innerHTML=h}
-$('#s-news').addEventListener('click',e=>{if(e.target.id=='nr')loadNews()});
-$('#s-news').addEventListener('change',e=>{if(e.target.id=='nf'){nf=e.target.checked;rNews()}});
+/* analysis */
+const FEEDS0=[{n:'FXStreet News',u:'https://www.fxstreet.com/rss/news'},{n:'FXStreet Analysis',u:'https://www.fxstreet.com/rss/analysis'},{n:'ForexLive',u:'https://www.forexlive.com/feed/news'},{n:'Investing Technical',u:'https://www.investing.com/rss/forex_Technical.rss'},{n:'Investing Fundamental',u:'https://www.investing.com/rss/forex_Fundamental.rss'},{n:'BabyPips',u:'https://www.babypips.com/feed.rss'},{n:'TradingView Ideas',u:'https://www.tradingview.com/feed/?sort=recent&symbol=FX:EURUSD'},{n:'Reddit r/Forex',u:'https://www.reddit.com/r/Forex/.rss'}];
+const TY=[['Technical',/technical|support|resistance|trend ?line|chart|pattern|rsi|macd|fibonacci|fib\b|breakout|candle|moving average|ema\b|bollinger|ichimoku|pivot/i],['Fundamental',/ecb|fed\b|fomc|cpi|inflation|nfp|payroll|gdp|interest rate|central bank|lagarde|powell|yield|pmi|employment|econom|tariff|policy/i]];
+const ST=[['ICT',/\bict\b|inner circle|order block|fair value gap|fvg|liquidity (sweep|grab)|killzone|silver bullet|power of 3/i],['Smart Money',/smart money|\bsmc\b|choch|\bbos\b|break of structure|supply (and|&) demand|institutional/i],['Price Action',/price action|pin bar|engulfing|candlestick|market structure|naked chart/i],['Elliott Wave',/elliott|wave [1-5a-c]\b|impulse wave|corrective wave/i],['Wyckoff',/wyckoff|accumulation|distribution phase/i],['Harmonic/Fib',/harmonic|gartley|butterfly|bat pattern|crab pattern|fibonacci|fib\b/i],['Sentiment/COT',/\bcot\b|commitment of traders|sentiment|positioning|retail traders/i],['Indicators',/\brsi\b|macd|stochastic|bollinger|ichimoku|moving average|\bema\b/i],['Scalping',/scalp|1-?min|5-?min|intraday/i],['Swing',/swing|weekly|position trad|monthly/i]];
+const stat={},fw={};let fid=0,news=[],nl=0,nt='all',ns='all',nv='all',nf=false,shown=0,LL=[],rdit=null;const PAGE=15;
+const io=new IntersectionObserver(es=>{if(es[0].isIntersecting&&shown<LL.length)more()},{root:$('main'),rootMargin:'500px'});
+function http(u){return new Promise(r=>{if(window.Android){const id='f'+(++fid);fw[id]=r;setTimeout(()=>{if(fw[id]){delete fw[id];r('')}},25000);Android.fetchUrl(id,u)}else fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(u)).then(x=>x.text()).then(r).catch(()=>r(''))})}
+window.onFetch=(id,t)=>{if(fw[id]){fw[id](t);delete fw[id]}};
+const tg=(e,n)=>{const l=e.getElementsByTagName(n)[0];return l?l.textContent.trim():''};
+const at=(e,n,a)=>{const l=e.getElementsByTagName(n)[0];return l?l.getAttribute(a)||'':''};
+const txt=h=>new DOMParser().parseFromString(h,'text/html').body.textContent.replace(/\s+/g,' ').trim();
+function tagIt(it){const x=it.t+' '+it.sum;it.ty=(TY.find(a=>a[1].test(x))||['News'])[0];it.st=ST.filter(a=>a[1].test(x)).map(a=>a[0])}
+async function loadFeed(f){const t=await http(f.u);if(!t){stat[f.n]='failed to load';return[]}
+ const x=new DOMParser().parseFromString(t,'text/xml'),r=[];
+ x.querySelectorAll('item,entry').forEach(i=>{const html=tg(i,'content:encoded')||tg(i,'content')||tg(i,'description')||tg(i,'summary'),
+  link=at(i,'link','href')||tg(i,'link'),
+  img=at(i,'media:content','url')||at(i,'media:thumbnail','url')||at(i,'enclosure','url')||((/<img[^>]+src=["']([^"']+)/i.exec(html))||[])[1]||'',
+  d=new Date(tg(i,'pubDate')||tg(i,'published')||tg(i,'updated')||tg(i,'dc:date'));
+  const it={t:txt(tg(i,'title')),s:f.n,l:link,d:isNaN(d)?0:+d,img,html:html.slice(0,8000),sum:txt(html).slice(0,260),a:tg(i,'dc:creator')||txt(tg(i,'author'))};
+  if(it.t&&it.l){tagIt(it);r.push(it)}});
+ stat[f.n]=r.length?'OK · '+r.length+' posts':'no posts found';return r}
+async function loadAll(){nl=1;rNews();const a=await Promise.all(FEEDS0.filter(f=>!S.hide.includes(f.n)).concat(S.cf).map(loadFeed)),seen={};
+ news=[].concat(...a).filter(i=>!seen[i.l]&&(seen[i.l]=1)).sort((p,q)=>q.d-p.d);nl=2;if(cur=='news')rNews();if(cur=='set')rSet()}
+function lst(){return (nv=='saved'?Object.values(S.sv):news).filter(i=>(nt=='all'||i.ty==nt)&&(ns=='all'||(i.st||[]).includes(ns))&&(nv!='follow'||S.fol[i.a]||S.fol[i.s])&&(!nf||/eur|usd|ecb|fed\b|dollar|euro|powell|lagarde/i.test(i.t+' '+i.sum))).sort((p,q)=>q.d-p.d)}
+function card(n,i){const m=Math.round((Date.now()-n.d)/6e4),ago=!n.d?'':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago';
+ return '<div class="news" data-i="'+i+'">'+(n.img?'<img loading="lazy" src="'+esc(n.img)+'" onerror="this.remove()">':'')+'<div><div class="tags"><span class="pill o">'+n.ty+'</span>'+(n.st||[]).map(s=>'<span class="pill">'+s+'</span>').join('')+'</div><b>'+esc(n.t)+'</b><span class="mu">'+esc(n.a||n.s)+' · '+ago+'</span><p class="mu sm">'+esc(n.sum)+'</p><div class="acts"><button class="g" data-act="sv">'+(S.sv[n.l]?'★ Saved':'☆ Save')+'</button><button class="g" data-act="fo">'+(S.fol[n.a||n.s]?'✓ Following':'＋ Follow')+'</button></div></div></div>'}
+function more(){const box=$('#nl'),sent=$('#sent');if(!box)return;if(nl==1&&nv!='saved'){sent.textContent='Loading analysis…';return}
+ const part=LL.slice(shown,shown+PAGE);box.insertAdjacentHTML('beforeend',part.map((n,k)=>card(n,shown+k)).join(''));shown+=part.length;
+ sent.textContent=shown<LL.length?'Loading more…':LL.length?'You reached the end. Tap Refresh for newer posts.':'Nothing here yet. Try another filter, or add sources in Settings.';
+ setTimeout(()=>{if(shown<LL.length&&sent.getBoundingClientRect().top<innerHeight+400)more()},60)}
+function rNews(){if(!nl){loadAll();return}
+ const chip=(k,v,l,c)=>'<button class="chip'+(c==v?' on':'')+'" data-'+k+'="'+v+'">'+l+'</button>';
+ $('#s-news').innerHTML='<div class="chips">'+[['all','All'],['saved','★ Saved'],['follow','Following']].map(a=>chip('nv',a[0],a[1],nv)).join('')+'</div><div class="chips">'+['all','Technical','Fundamental','News'].map(a=>chip('nt',a,a=='all'?'All types':a,nt)).join('')+'</div><div class="row" style="border:0"><select id="nsel"><option value="all">All styles</option>'+ST.map(a=>'<option'+(ns==a[0]?' selected':'')+'>'+a[0]+'</option>').join('')+'</select><span style="display:flex;gap:8px;align-items:center"><label class="mu"><input type="checkbox" class="sw" id="nf"'+(nf?' checked':'')+'> EUR/USD only</label><button class="g" id="nr">Refresh</button></span></div><div id="nl"></div><div id="sent" class="mu" style="text-align:center;padding:16px"></div>';
+ LL=lst();shown=0;more();io.disconnect();io.observe($('#sent'))}
+function tgSave(n){if(S.sv[n.l])delete S.sv[n.l];else S.sv[n.l]={t:n.t,s:n.s,l:n.l,d:n.d,img:n.img,html:(n.html||'').slice(0,6000),sum:n.sum,a:n.a,ty:n.ty,st:n.st};save()}
+function tgFol(n){const k=n.a||n.s;if(S.fol[k])delete S.fol[k];else S.fol[k]=1;save()}
+$('#s-news').addEventListener('click',e=>{const t=e.target,d=t.dataset;
+ if(d.nv){nv=d.nv;rNews();return}if(d.nt){nt=d.nt;rNews();return}if(t.id=='nr'){nl=0;rNews();return}
+ const c=t.closest('[data-i]');if(!c)return;const n=LL[+c.dataset.i];
+ if(d.act=='sv'){tgSave(n);t.textContent=S.sv[n.l]?'★ Saved':'☆ Save';return}
+ if(d.act=='fo'){tgFol(n);t.textContent=S.fol[n.a||n.s]?'✓ Following':'＋ Follow';return}
+ openRd(n)});
+$('#s-news').addEventListener('change',e=>{if(e.target.id=='nf'){nf=e.target.checked;rNews()}if(e.target.id=='nsel'){ns=e.target.value;rNews()}});
+/* reader */
+function blocks(h,base){const d=new DOMParser().parseFromString(h,'text/html');
+ d.querySelectorAll('script,style,nav,footer,aside,form,iframe,noscript,button,svg').forEach(e=>e.remove());
+ let root=d.querySelector('article')||d.querySelector('main');
+ if(!root){let best=0;d.querySelectorAll('div,section').forEach(e=>{const c=[...e.children].filter(x=>x.tagName=='P').length;if(c>best){best=c;root=e}})}
+ root=root||d.body;const r=[];let last='';
+ root.querySelectorAll('h1,h2,h3,p,blockquote,li,img').forEach(e=>{const k=e.tagName.toLowerCase();
+  if(k=='img'){let s=e.getAttribute('data-src')||e.getAttribute('src')||'';try{s=new URL(s,base).href}catch(x){return}if(!/^https?:/.test(s)||/logo|avatar|icon|sprite|pixel|tracking|\.svg|\.gif/i.test(s))return;const w=+e.getAttribute('width');if(w&&w<120)return;r.push({k:'img',v:s});return}
+  const t=e.textContent.replace(/\s+/g,' ').trim();if(t==last||t.length<(k[0]=='h'?3:30))return;last=t;r.push({k:k=='li'?'p':k=='h1'?'h2':k,v:t})});
+ return r.slice(0,120)}
+async function openRd(n){rdit=n;const u=n.d?new Date(n.d):null;$('#rd').classList.add('on');$('#rd').scrollTop=0;
+ $('#rdt').innerHTML='<button class="g" id="rds">'+(S.sv[n.l]?'★ Saved':'☆ Save')+'</button><a class="btn" target="_blank" href="'+esc(n.l)+'">Open original</a>';
+ $('#rdc').innerHTML='<h1>'+esc(n.t)+'</h1><p class="mu">'+esc(n.a||n.s)+(u?' · '+u.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})+' local / '+f2(u.getUTCHours())+':'+f2(u.getUTCMinutes())+' UTC':'')+'</p><p class="mu" id="rdl">Loading article…</p>';
+ let b=[];const t=await http(n.l);if(t)b=blocks(t,n.l);
+ if(b.filter(x=>x.k=='p').length<3)b=blocks('<body>'+(n.html||'')+'</body>',n.l);
+ if(rdit!==n)return;const c=$('#rdc');$('#rdl').remove();
+ if(!b.some(x=>x.k=='img')&&n.img)b.unshift({k:'img',v:n.img});
+ if(!b.length)b=[{k:'p',v:n.sum||'No preview available.'}];
+ b.forEach(x=>{const e=document.createElement(x.k=='img'?'img':x.k);if(x.k=='img'){e.src=x.v;e.loading='lazy';e.onerror=()=>e.remove()}else e.textContent=x.v;c.appendChild(e)});
+ c.insertAdjacentHTML('beforeend','<p class="mu">Some sites limit the text shown here. Use Open original for the full article.</p>')}
+function closeRd(){$('#rd').classList.remove('on');rdit=null}
+window.backBtn=()=>{const o=$('#rd').classList.contains('on');if(o)closeRd();return o};
+$('#rd').addEventListener('click',e=>{if(e.target.id=='rdb')closeRd();if(e.target.id=='rds'&&rdit){tgSave(rdit);e.target.textContent=S.sv[rdit.l]?'★ Saved':'☆ Save'}});
+/* sources in settings */
+function srcHtml(){let h='<div class="card"><h3>Analysis sources</h3>';
+ FEEDS0.concat(S.cf).forEach(f=>{const cu=S.cf.includes(f);h+='<div class="row"><div><b>'+esc(f.n)+'</b><div class="mu">'+(stat[f.n]||'not loaded yet')+'</div></div>'+(cu?'<button class="g" data-fdel="'+esc(f.n)+'">Remove</button>':'<input type="checkbox" class="sw" data-fh="'+esc(f.n)+'"'+(S.hide.includes(f.n)?'':' checked')+'>')+'</div>'});
+ return h+'<div class="row"><input id="fn" placeholder="Name" style="width:90px"><input id="fu" placeholder="Feed URL (RSS/Atom)" style="flex:1;min-width:0"><button id="fadd">Add</button></div><p class="mu" style="margin-top:8px">Add any blog, Substack, YouTube channel or Reddit feed, then tap Follow on a post to track an author.</p></div>'}
+function rSet(){rSet0();$('#s-set').insertAdjacentHTML('beforeend',srcHtml())}
+$('#s-set').addEventListener('click',e=>{const t=e.target;
+ if(t.id=='fadd'){const n=$('#fn').value.trim(),u=$('#fu').value.trim();if(!/^https?:\/\//.test(u))return;S.cf.push({n:n||new URL(u).hostname,u});save();nl=0;rSet()}
+ if(t.dataset.fdel){S.cf=S.cf.filter(f=>f.n!=t.dataset.fdel);save();nl=0;rSet()}});
+$('#s-set').addEventListener('change',e=>{const n=e.target.dataset.fh;if(n){S.hide=S.hide.filter(x=>x!=n);if(!e.target.checked)S.hide.push(n);save();nl=0}});
+
 let ip;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;if(cur=='set')rSet()});
-function rSet(){$('#s-set').innerHTML='<div class="card"><div class="row" style="border:0;padding-top:0"><span>Volume</span><input type="range" id="vol" min="0.1" max="1" step="0.1" value="'+S.vol+'"></div><div class="row"><span>Price offset (pips)<div class="mu">Match your broker. Can be negative.</div></span><input type="number" id="off" step="0.1" value="'+(S.off||0)+'"></div><div class="row"><span>Keep screen on<div class="mu">Helps alarms ring on time</div></span><input type="checkbox" class="sw" id="wk"'+(S.wake?' checked':'')+'></div>'+(ip?'<div class="row"><span>Install as app</span><button id="inst">Install</button></div>':'')+'</div><div class="card mu">Alarms ring in the background, even when the app is closed. Open the app every couple of weeks to refresh them. Sessions and killzones follow daylight saving automatically. Time shown uses your phone clock and zone ('+LOCAL+').</div>'}
+function rSet0(){$('#s-set').innerHTML='<div class="card"><div class="row" style="border:0;padding-top:0"><span>Volume</span><input type="range" id="vol" min="0.1" max="1" step="0.1" value="'+S.vol+'"></div><div class="row"><span>Price offset (pips)<div class="mu">Match your broker. Can be negative.</div></span><input type="number" id="off" step="0.1" value="'+(S.off||0)+'"></div><div class="row"><span>Keep screen on<div class="mu">Helps alarms ring on time</div></span><input type="checkbox" class="sw" id="wk"'+(S.wake?' checked':'')+'></div>'+(ip?'<div class="row"><span>Install as app</span><button id="inst">Install</button></div>':'')+'</div><div class="card mu">Alarms ring in the background, even when the app is closed. Open the app every couple of weeks to refresh them. Sessions and killzones follow daylight saving automatically. Time shown uses your phone clock and zone ('+LOCAL+').</div>'}
 $('#s-set').addEventListener('input',e=>{if(e.target.id=='vol'){S.vol=+e.target.value;save()}if(e.target.id=='off'){S.off=parseFloat(e.target.value)||0;save()}});
 $('#s-set').addEventListener('change',e=>{if(e.target.id=='wk'){S.wake=e.target.checked;save();if(S.wake)wl();else try{window._wl&&window._wl.release()}catch(x){}}});
 $('#s-set').addEventListener('click',e=>{if(e.target.id=='inst'&&ip){ip.prompt();ip=null}});

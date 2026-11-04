@@ -40,7 +40,9 @@ class MainActivity : Activity() {
         super.onResume()
         if (::web.isInitialized) web.evaluateJavascript("try{pullNative()}catch(e){}", null)
     }
-    override fun onBackPressed() { moveTaskToBack(true) }
+    override fun onBackPressed() {
+        web.evaluateJavascript("window.backBtn?backBtn():false") { r -> if (r != "true") moveTaskToBack(true) }
+    }
 }
 
 class Bridge(private val a: Activity) {
@@ -54,6 +56,13 @@ class Bridge(private val a: Activity) {
             a.runOnUiThread { (a as MainActivity).web.evaluateJavascript(js, null) }
         }.start()
     }
+    @JavascriptInterface fun fetchUrl(id: String, url: String) {
+        Thread {
+            val s = (Quote.get(url) ?: "").take(900000)
+            val js = "window.onFetch(" + JSONObject.quote(id) + "," + JSONObject.quote(s) + ")"
+            a.runOnUiThread { (a as MainActivity).web.evaluateJavascript(js, null) }
+        }.start()
+    }
     @JavascriptInterface fun sync(json: String) { try { Sched.sync(a, json) } catch (e: Exception) {} }
     @JavascriptInterface fun getPa(): String = Sched.prefs(a).getString("pa", "[]") ?: "[]"
 }
@@ -62,11 +71,11 @@ object Quote {
     private var offB = 0.0
     private var calAt = 0L
     private var lastY: JSONObject? = null
-    private fun get(u: String): String? {
+    fun get(u: String): String? {
         return try {
             val c = URL(u).openConnection() as HttpURLConnection
-            c.connectTimeout = 6000; c.readTimeout = 6000
-            c.setRequestProperty("User-Agent", "Mozilla/5.0")
+            c.connectTimeout = 8000; c.readTimeout = 12000
+            c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36")
             val s = c.inputStream.bufferedReader().readText()
             c.disconnect()
             s
