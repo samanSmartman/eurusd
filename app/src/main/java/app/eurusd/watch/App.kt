@@ -47,8 +47,43 @@ class Bridge(private val a: Activity) {
     @JavascriptInterface fun arm() {
         a.runOnUiThread { if (Build.VERSION.SDK_INT >= 33) a.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1) }
     }
+    @JavascriptInterface fun fetchPrice() {
+        Thread {
+            val q = Quote.fetch()
+            val js = "window.onNativePrice(" + (q?.toString() ?: "null") + ")"
+            a.runOnUiThread { (a as MainActivity).web.evaluateJavascript(js, null) }
+        }.start()
+    }
     @JavascriptInterface fun sync(json: String) { try { Sched.sync(a, json) } catch (e: Exception) {} }
     @JavascriptInterface fun getPa(): String = Sched.prefs(a).getString("pa", "[]") ?: "[]"
+}
+
+object Quote {
+    private fun get(u: String): String? {
+        return try {
+            val c = URL(u).openConnection() as HttpURLConnection
+            c.connectTimeout = 8000; c.readTimeout = 8000
+            c.setRequestProperty("User-Agent", "Mozilla/5.0")
+            val s = c.inputStream.bufferedReader().readText()
+            c.disconnect()
+            s
+        } catch (e: Exception) { null }
+    }
+    fun fetch(): JSONObject? {
+        for (host in listOf("query1", "query2")) {
+            val s = get("https://" + host + ".finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=1m&range=1d") ?: continue
+            try {
+                val m = JSONObject(s).getJSONObject("chart").getJSONArray("result").getJSONObject(0).getJSONObject("meta")
+                val p = m.getDouble("regularMarketPrice")
+                val pc = m.optDouble("chartPreviousClose", p)
+                return JSONObject().put("p", p).put("ch", (p - pc) / pc * 100)
+                    .put("h", m.optDouble("regularMarketDayHigh", p)).put("l", m.optDouble("regularMarketDayLow", p))
+                    .put("src", "Yahoo Finance EUR/USD")
+            } catch (e: Exception) {}
+        }
+        val s = get("https://data-api.binance.vision/api/v3/ticker/price?symbol=EURUSDT") ?: return null
+        return try { JSONObject().put("p", JSONObject(s).getString("price").toDouble()).put("src", "Binance EUR/USDT (backup, not exact)") } catch (e: Exception) { null }
+    }
 }
 
 object Sched {
@@ -166,25 +201,13 @@ class PriceService : Service() {
             alive = true
             th = Thread {
                 while (alive) {
-                    try { val p = price(); if (p > 0) check(p) } catch (e: Exception) {}
+                    try { val p = Quote.fetch()?.getDouble("p") ?: 0.0; if (p > 0) check(p) } catch (e: Exception) {}
                     try { Thread.sleep(5000) } catch (e: Exception) {}
                 }
             }
             th!!.start()
         }
         return START_STICKY
-    }
-    private fun price(): Double {
-        for (b in listOf("https://data-api.binance.vision", "https://api.binance.com")) {
-            try {
-                val c = URL(b + "/api/v3/ticker/price?symbol=EURUSDT").openConnection() as HttpURLConnection
-                c.connectTimeout = 8000; c.readTimeout = 8000
-                val s = c.inputStream.bufferedReader().readText()
-                c.disconnect()
-                return JSONObject(s).getString("price").toDouble()
-            } catch (e: Exception) {}
-        }
-        return 0.0
     }
     private fun check(p: Double) {
         val sp = Sched.prefs(this)

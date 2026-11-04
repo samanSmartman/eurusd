@@ -116,7 +116,8 @@ let price=0,first=0,pdata=null;
 async function getPrice(){
  for(const b of['https://data-api.binance.vision','https://api.binance.com'])try{const j=await(await fetch(b+'/api/v3/ticker/24hr?symbol=EURUSDT')).json();if(j.lastPrice)return{p:+j.lastPrice,ch:+j.priceChangePercent,h:+j.highPrice,l:+j.lowPrice,src:'Binance EUR/USDT, live'}}catch(e){}
  try{const j=await(await fetch('https://open.er-api.com/v6/latest/EUR')).json();return{p:j.rates.USD,src:'open.er-api, updates hourly'}}catch(e){}}
-async function poll(){const d=await getPrice();if(d){const up=d.p>=price;pdata=d;pdata.up=up;price=d.p}else pdata=null;if(cur=='home')rHome();tick()}
+window.onNativePrice=async d=>{if(!d||!d.p)d=await getPrice();if(!d)return;d.up=d.p>=price;pdata=d;price=d.p;if(cur=='home')rHome()};
+async function poll(){if(window.Android){try{Android.fetchPrice()}catch(e){}return}const d=await getPrice();if(d){const up=d.p>=price;pdata=d;pdata.up=up;price=d.p}else pdata=null;if(cur=='home')rHome();tick()}
 /* tabs */
 let cur='home';
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{cur=b.dataset.t;document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id=='s-'+cur));({home:rHome,alarms:rAlarms,news:rNews,set:rSet})[cur]()});
@@ -168,5 +169,5 @@ setTimeout(()=>{pullNative();syncNative()},500);
 function clock(){const n=new Date();$('#lt').textContent=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('#ut').textContent=f2(n.getUTCHours())+':'+f2(n.getUTCMinutes())+':'+f2(n.getUTCSeconds());if(cur=='home')rHome();tick()}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 $('#arm').style.display='block';
-clock();setInterval(clock,1000);poll();setInterval(poll,3000);
+clock();setInterval(clock,1000);poll();setInterval(poll,window.Android?5000:3000);
 </script></body></html>
