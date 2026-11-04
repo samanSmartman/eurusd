@@ -63,6 +63,9 @@ class Bridge(private val a: Activity) {
             a.runOnUiThread { (a as MainActivity).web.evaluateJavascript(js, null) }
         }.start()
     }
+    @JavascriptInterface fun testRing(cat: String) { RingService.start(a, "Test alarm", "This is how it sounds", cat) }
+    @JavascriptInterface fun status(): String =
+        JSONObject().put("at", PriceService.lastAt).put("p", PriceService.lastP).put("now", System.currentTimeMillis()).toString()
     @JavascriptInterface fun sync(json: String) { try { Sched.sync(a, json) } catch (e: Exception) {} }
     @JavascriptInterface fun getPa(): String = Sched.prefs(a).getString("pa", "[]") ?: "[]"
 }
@@ -197,7 +200,7 @@ class RingService : Service() {
         val snd = JSONObject(sp.getString("snd", "{}") ?: "{}").optString(cat, "bell")
         val type = when (snd) { "siren" -> RingtoneManager.TYPE_ALARM; "beep" -> RingtoneManager.TYPE_RINGTONE; else -> RingtoneManager.TYPE_NOTIFICATION }
         rt?.stop()
-        rt = RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(type))
+        rt = RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(type) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))
         rt?.audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build()
         rt?.isLooping = true
         rt?.volume = sp.getFloat("vol", 0.8f)
@@ -214,6 +217,8 @@ class PriceService : Service() {
     private var alive = false
     private var th: Thread? = null
     companion object {
+        @Volatile var lastAt: Long = 0L
+        @Volatile var lastP: Double = 0.0
         fun active(c: Context): Boolean {
             val a = JSONArray(Sched.prefs(c).getString("pa", "[]") ?: "[]")
             for (i in 0 until a.length()) if (a.getJSONObject(i).optBoolean("on", true)) return true
@@ -235,7 +240,7 @@ class PriceService : Service() {
             alive = true
             th = Thread {
                 while (alive) {
-                    try { val p = Quote.fetch(Sched.off(this))?.getDouble("p") ?: 0.0; if (p > 0) check(p) } catch (e: Exception) {}
+                    try { val p = Quote.fetch(Sched.off(this))?.getDouble("p") ?: 0.0; if (p > 0) { lastAt = System.currentTimeMillis(); lastP = p; check(p) } } catch (e: Exception) {}
                     try { Thread.sleep(2000) } catch (e: Exception) {}
                 }
             }

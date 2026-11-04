@@ -152,12 +152,12 @@ function rAlarms(){const now=Date.now();let h='';
  for(const g of['kz','se']){h+='<div class="card"><h3>'+GROUPS[g].n+'</h3><div class="row" style="padding-top:0"><span class="mu">Sound</span><span>'+sndSel(g)+'</span></div>';
   GROUPS[g].L.forEach(r=>{const st=S[g][r.id],at=nxt(r.tz,r.o,now);
    h+='<div class="row"><div><b>'+r.n+'</b><div class="mu">Next: '+new Date(at).toLocaleDateString([],{weekday:'short'})+' '+hm(at)+' your time</div></div><div style="display:flex;gap:8px;align-items:center"><select data-lead="'+g+'.'+r.id+'">'+[0,5,10,15,30].map(x=>'<option value="'+x+'"'+(st.lead==x?' selected':'')+'>'+(x?x+' min before':'At open')+'</option>').join('')+'</select><input type="checkbox" class="sw" data-on="'+g+'.'+r.id+'"'+(st.on?' checked':'')+'></div></div>'});h+='</div>'}
- h+='<div class="card"><h3>Price alarms</h3><div class="row" style="padding-top:0"><span class="mu">Sound</span><span>'+sndSel('pr')+'</span></div><div class="row"><input type="number" id="pin" step="0.0001" placeholder="1.0850"><button id="padd">Add alarm</button></div>';
+ h+='<div class="card"><h3>Price alarms</h3><div class="mu" id="pws" style="margin-bottom:8px"></div><div class="row" style="padding-top:0"><span class="mu">Sound</span><span>'+sndSel('pr')+'</span></div><div class="row"><input type="number" id="pin" step="0.0001" placeholder="1.0850"><button id="padd">Add alarm</button></div>';
  S.pa.forEach((a,i)=>h+='<div class="row"><div><b>'+a.p.toFixed(5)+'</b><div class="mu">'+(a.dir=='up'?'Rings when price rises to this':'Rings when price falls to this')+(a.on?'':' · triggered')+'</div></div><button class="g" data-del="'+i+'">Delete</button></div>');
  $('#s-alarms').innerHTML=h+'</div>'}
 $('#s-alarms').addEventListener('change',e=>{const d=e.target.dataset;if(d.snd)S.snd[d.snd]=e.target.value;if(d.lead){const[g,i]=d.lead.split('.');S[g][i].lead=+e.target.value}if(d.on){const[g,i]=d.on.split('.');S[g][i].on=e.target.checked}save()});
 $('#s-alarms').addEventListener('click',e=>{const d=e.target.dataset;
- if(d.test){if(!ac)return arm();ring(d.test,'Test alarm','This is how it sounds')}
+ if(d.test){if(window.Android){Android.testRing(d.test);return}if(!ac)return arm();ring(d.test,'Test alarm','This is how it sounds')}
  if(d.del){S.pa.splice(+d.del,1);save();rAlarms()}
  if(e.target.id=='padd'){const v=parseFloat($('#pin').value);if(!v)return;S.pa.push({p:v,dir:v>price?'up':'dn',on:true});save();rAlarms()}});
 /* analysis */
@@ -250,7 +250,8 @@ function syncNative(){if(!window.Android)return;const now=Date.now(),ev=[];
 function pullNative(){if(!window.Android)return;try{S.pa=JSON.parse(Android.getPa());if(cur=='alarms')rAlarms()}catch(e){}}
 setTimeout(()=>{pullNative();syncNative()},500);
 /* start */
-function clock(){const n=new Date();$('#lt').textContent=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('#ut').textContent=f2(n.getUTCHours())+':'+f2(n.getUTCMinutes())+':'+f2(n.getUTCSeconds());if(cur=='home')rHome();tick()}
+function pws(){const e=$('#pws');if(!e)return;try{const s=JSON.parse(Android.status()),a=S.pa.some(x=>x.on);e.textContent=!a?'No active price alarms':(s.at&&s.now-s.at<15000)?'Background watch running · last check '+Math.round((s.now-s.at)/1e3)+'s ago · '+(+s.p).toFixed(5):'Background watch NOT running'}catch(x){}}
+function clock(){if(cur=='alarms'&&window.Android)pws();const n=new Date();$('#lt').textContent=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('#ut').textContent=f2(n.getUTCHours())+':'+f2(n.getUTCMinutes())+':'+f2(n.getUTCSeconds());if(cur=='home')rHome();tick()}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 $('#arm').style.display='block';
 clock();setInterval(clock,1000);poll();setInterval(poll,window.Android?2000:3000);
