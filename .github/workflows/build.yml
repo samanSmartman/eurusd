@@ -20,8 +20,14 @@ jobs:
         with:
           gradle-version: '8.5'
       - name: Build debug APK
+        shell: bash
         working-directory: android
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon --console=plain 2>&1 | tee build.log
+      - name: Show errors
+        if: failure()
+        working-directory: android
+        run: |
+          grep -nE "^e: |^w: .*error|What went wrong|Execution failed|Could not|Unresolved|error:" -A3 build.log | head -60
       - name: Prepare APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk EURUSD-Line-Alarm.apk
       - uses: actions/upload-artifact@v4
