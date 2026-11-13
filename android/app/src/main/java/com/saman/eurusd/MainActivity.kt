@@ -98,7 +98,7 @@ class MainActivity : Activity() {
             setTextColor(WHITE)
             isChecked = Store.monitoring
             setOnCheckedChangeListener { _, on ->
-                Store.setMonitoring(on)
+                Store.updateMonitoring(on)
                 if (on) PriceService.start(this@MainActivity)
                 else stopService(Intent(this@MainActivity, PriceService::class.java))
             }

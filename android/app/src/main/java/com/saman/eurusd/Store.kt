@@ -113,5 +113,5 @@ object Store {
 
     @Synchronized fun setOffset(v: Double) { offsetPips = v; save() }
 
-    @Synchronized fun setMonitoring(v: Boolean) { monitoring = v; save() }
+    @Synchronized fun updateMonitoring(v: Boolean) { monitoring = v; save() }
 }
